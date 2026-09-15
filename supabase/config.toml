@@ -1,0 +1,51 @@
+# Link this directory to your project first:
+#   supabase link --project-ref <your-project-ref>
+# which fills in project_id below.
+project_id = "nlh-mtt-hu-trainer"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 17
+
+[realtime]
+enabled = true
+
+[studio]
+enabled = true
+port = 54323
+
+[auth]
+enabled = true
+# Room links are shared as <site_url>/room/<code>.
+site_url = "http://localhost:5173"
+additional_redirect_urls = ["http://localhost:5173"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+# The two players identify themselves with anonymous sign-in: no email, no
+# password, just a stable user id per browser. This must also be switched on in
+# the dashboard under Authentication > Sign In / Providers for the hosted project.
+enable_anonymous_sign_ins = true
+
+[auth.email]
+enable_signup = false
+
+# Every function requires a signed-in caller. Leaving verify_jwt on means an
+# unauthenticated request is rejected by the platform before our code runs.
+[functions.create_room]
+verify_jwt = true
+
+[functions.join_room]
+verify_jwt = true
+
+[functions.start_hand]
+verify_jwt = true
+
+[functions.act]
+verify_jwt = true

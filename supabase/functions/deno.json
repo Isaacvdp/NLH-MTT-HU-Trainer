@@ -1,0 +1,12 @@
+{
+  "//": "Scopes Deno to the functions directory so it does not read the pnpm workspace above it. Lets `deno check` resolve the npm imports locally; the Supabase Edge Runtime resolves them on its own.",
+  "nodeModulesDir": "auto",
+  "lock": false,
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true
+  },
+  "tasks": {
+    "check": "deno check create_room/index.ts join_room/index.ts start_hand/index.ts act/index.ts"
+  }
+}

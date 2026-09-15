@@ -102,6 +102,62 @@ the sizing bar, folding, swapping seats and running an all-in out to showdown.
 browser. Set the spot up, deal, and pass the device back and forth; by default only the
 player to act can see their cards. Supabase-backed online play is the next step.
 
+## Supabase (online play)
+
+The server is authoritative. A client can read the public state of a room it
+belongs to and its own two cards; it can read nothing else and write nothing at
+all. Every action goes through an Edge Function that validates it with the same
+engine the browser uses.
+
+| Table | Who can read it |
+| --- | --- |
+| `rooms` | its two members |
+| `game_state` | its two members - public hand state, no deck, hole cards only once public |
+| `hole_cards` | only the player the row belongs to |
+| `decks` | nobody; service role only |
+| `hand_states` | nobody; service role only - the authoritative state, deck included |
+
+`decks` and `hand_states` have row-level security on and no policies, which
+denies every client outright. Edge Functions reach them with the service role.
+
+### Functions
+
+| Function | What it does |
+| --- | --- |
+| `create_room` | validates the settings, allocates a share code, makes the caller the host |
+| `join_room` | claims the free seat by code; rejoining as host or guest is idempotent |
+| `start_hand` | shuffles with `crypto.getRandomValues`, deals, writes the deck and hole cards privately, publishes the public state |
+| `act` | checks it is your turn, applies one action through the engine, publishes the result |
+
+`act` writes under an optimistic version check, so two requests racing on the
+same hand cannot both land.
+
+### Deploying
+
+The engine is vendored into `supabase/functions/_shared/engine` at deploy time,
+because `supabase functions deploy` only uploads what lives under the functions
+directory, and Deno will not resolve the engine's `.js` import specifiers to
+`.ts` files. `pnpm sync:engine` does the copy and the rewrite; it is git-ignored
+and regenerated, so never edit it by hand.
+
+```bash
+supabase login
+supabase link --project-ref <your-project-ref>
+
+pnpm db:push            # apply supabase/migrations
+pnpm deploy:functions   # sync the engine, then deploy all four functions
+pnpm check:functions    # typecheck them locally first (needs Deno)
+```
+
+Two things to switch on in the dashboard:
+
+- **Authentication > Sign In / Providers**: enable anonymous sign-ins.
+- Confirm **Realtime** is on for `game_state` - the migration adds it to the
+  `supabase_realtime` publication.
+
+Free-tier projects pause after about a week of inactivity and have to be resumed
+from the dashboard.
+
 ## Environment
 
 The web app reads only the public Supabase values:

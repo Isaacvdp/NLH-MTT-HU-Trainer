@@ -7,3 +7,5 @@ export * from './actions.js';
 export * from './sizing.js';
 export * from './history.js';
 export * from './presets.js';
+export * from './public.js';
+export * from './room.js';

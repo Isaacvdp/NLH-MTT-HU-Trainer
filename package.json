@@ -10,7 +10,11 @@
     "test": "pnpm -r test",
     "test:engine": "pnpm --filter engine test",
     "test:watch": "pnpm --filter engine test:watch",
-    "typecheck": "pnpm -r typecheck"
+    "typecheck": "pnpm -r typecheck",
+    "sync:engine": "node scripts/sync-engine.mjs",
+    "check:functions": "pnpm sync:engine && deno check --config supabase/functions/deno.json supabase/functions/*/index.ts",
+    "db:push": "supabase db push",
+    "deploy:functions": "pnpm sync:engine && supabase functions deploy create_room join_room start_hand act"
   },
   "devDependencies": {
     "typescript": "^5.9.2"

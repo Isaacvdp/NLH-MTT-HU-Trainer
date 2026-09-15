@@ -132,7 +132,12 @@ export interface HandState {
   startedAt: string;
 }
 
-/** The subset of a hand that is safe to show every player at the table. */
-export interface PublicHandState extends Omit<HandState, 'deck' | 'players'> {
-  players: [Omit<PlayerState, 'holeCards'> & { holeCards: [Card, Card] | null }, Omit<PlayerState, 'holeCards'> & { holeCards: [Card, Card] | null }];
+/**
+ * The subset of a hand that is safe to publish to every player at the table:
+ * the undealt deck is gone, and hole cards are only present for seats that are
+ * meant to be visible. Built by `toPublicState`.
+ */
+export interface PublicHandState extends Omit<HandState, 'deck'> {
+  /** What the player to act may do, so clients do not have to re-derive it. */
+  legal: LegalActions | null;
 }
