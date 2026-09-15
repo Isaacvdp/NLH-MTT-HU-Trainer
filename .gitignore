@@ -1,0 +1,14 @@
+node_modules
+dist
+.env
+.env.local
+.env.*.local
+supabase/.temp
+supabase/.branches
+.netlify
+coverage
+.DS_Store
+*.log
+.vite
+.turbo
+.claude/settings.local.json

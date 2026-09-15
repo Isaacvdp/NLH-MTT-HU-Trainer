@@ -1,0 +1,17 @@
+{
+  "name": "nlh-mtt-hu-trainer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.4.2",
+  "scripts": {
+    "build": "pnpm --filter engine build && pnpm --filter web build",
+    "dev": "pnpm --filter web dev",
+    "test": "pnpm --filter engine test",
+    "test:watch": "pnpm --filter engine test:watch",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2"
+  }
+}
