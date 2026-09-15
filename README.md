@@ -83,13 +83,24 @@ so the dead money is attributable and the text imports into solvers and trackers
 ## Testing
 
 ```bash
+pnpm test               # everything
 pnpm --filter engine test
+pnpm --filter web test
 ```
 
-The suite covers dead-money totals for every spot and ante type, action order per street,
-min-raise rules, short all-ins that do not reopen the action, partial blind posts, uncalled
-bets, split pots and the odd chip, plus randomised play over thousands of hands checking
-that chips are always conserved and every hand terminates.
+The engine suite covers dead-money totals for every spot and ante type, action order per
+street, min-raise rules, short all-ins that do not reopen the action, partial blind posts,
+uncalled bets, split pots and the odd chip, plus randomised play over thousands of hands
+checking that chips are always conserved and every hand terminates.
+
+The web suite renders the real app in jsdom and plays hands through the buttons: dealing,
+the sizing bar, folding, swapping seats and running an all-in out to showdown.
+
+## Hot-seat mode
+
+`pnpm dev` gives you local two-player practice with no backend — the engine runs in the
+browser. Set the spot up, deal, and pass the device back and forth; by default only the
+player to act can see their cards. Supabase-backed online play is the next step.
 
 ## Environment
 

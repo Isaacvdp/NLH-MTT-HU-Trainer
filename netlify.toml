@@ -1,0 +1,14 @@
+[build]
+  base = "apps/web"
+  command = "pnpm build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+  PNPM_VERSION = "12"
+
+# Room links have to survive a refresh.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
