@@ -4,7 +4,8 @@
  */
 
 import { normalizeNewHand } from './actions.js';
-import { type Card, shuffledDeck, type RandomInt } from './cards.js';
+import { type Card, cryptoRandomInt, shuffledDeck, type RandomInt } from './cards.js';
+import { isAnyTwoCards, sampleFromRange, type Range } from './range.js';
 import {
   assertTableSize,
   firstToAct,
@@ -25,6 +26,11 @@ export interface CreateHandOptions {
   randomInt?: RandomInt;
   handNumber?: number;
   startedAt?: string;
+  /**
+   * Starting hands each seat is dealt from. An empty or absent range means any
+   * two cards, which is what happens off the top of the deck anyway.
+   */
+  ranges?: [Range, Range];
 }
 
 export function validateSpotConfig(config: SpotConfig): void {
@@ -164,9 +170,11 @@ export function createHand(config: SpotConfig, options: CreateHandOptions = {}):
     }
   }
 
-  // 3. Hole cards.
-  players[0].holeCards = [deck[0]!, deck[1]!];
-  players[1].holeCards = [deck[2]!, deck[3]!];
+  // 3. Hole cards. Ranges, when set, decide which four cards come off the top;
+  //    the rest of the deck is untouched and still deals the board.
+  const dealt = dealHoleCards(deck, options.ranges, options.randomInt ?? cryptoRandomInt);
+  players[0].holeCards = dealt[0];
+  players[1].holeCards = dealt[1];
   events.push({ kind: 'deal-hole', player: 0 }, { kind: 'deal-hole', player: 1 });
 
   const pot = deadMoney + players[0].committedTotal + players[1].committedTotal;
@@ -178,7 +186,8 @@ export function createHand(config: SpotConfig, options: CreateHandOptions = {}):
     pot,
     board: [],
     street: 'preflop',
-    deck: deck.slice(4),
+    // The hole cards have already been taken out of the deck.
+    deck: deck.slice(),
     // The bet to match preflop is the big blind, whether or not that seat is live.
     toAct: firstToAct(config.positions, config.tableSize, 'preflop'),
     currentBet: config.bigBlind,
@@ -213,4 +222,62 @@ export function deadMoneyFor(config: SpotConfig): number {
   if (!live.has('BB')) dead += config.bigBlind;
 
   return dead;
+}
+
+/** How many times to re-draw the first hand when it blocks out the second range. */
+const RANGE_RETRIES = 40;
+
+/**
+ * Takes four cards off the deck for the two players, honouring their ranges.
+ *
+ * The chosen cards are moved to the front of the deck so everything downstream
+ * — the board, the remaining stub — carries on as if they had been dealt off
+ * the top, which they effectively were.
+ */
+function dealHoleCards(
+  deck: Card[],
+  ranges: [Range, Range] | undefined,
+  randomInt: RandomInt,
+): [[Card, Card], [Card, Card]] {
+  const unrestricted: [[Card, Card], [Card, Card]] = [
+    [deck[0]!, deck[1]!],
+    [deck[2]!, deck[3]!],
+  ];
+  if (!ranges || (isAnyTwoCards(ranges[0]) && isAnyTwoCards(ranges[1]))) {
+    deck.splice(0, 4);
+    return unrestricted;
+  }
+
+  for (let attempt = 0; attempt < RANGE_RETRIES; attempt++) {
+    const available = new Set(deck);
+
+    const first = isAnyTwoCards(ranges[0])
+      ? ([deck[0]!, deck[1]!] as [Card, Card])
+      : sampleFromRange(ranges[0], available, randomInt);
+    if (!first) throw new Error('The first range has no hands that can be dealt');
+
+    available.delete(first[0]);
+    available.delete(first[1]);
+
+    const second = isAnyTwoCards(ranges[1])
+      ? firstAvailable(deck, available)
+      : sampleFromRange(ranges[1], available, randomInt);
+
+    // A narrow second range can be blocked by the first hand; redraw and retry.
+    if (!second) continue;
+
+    for (const card of [...second, ...first].reverse()) {
+      const index = deck.indexOf(card);
+      if (index !== -1) deck.splice(index, 1);
+    }
+    return [first, second];
+  }
+
+  throw new Error('Could not deal both hands from their ranges; the ranges may be too narrow');
+}
+
+/** The next two untouched cards, for a seat with no range of its own. */
+function firstAvailable(deck: Card[], available: ReadonlySet<Card>): [Card, Card] | null {
+  const cards = deck.filter((card) => available.has(card)).slice(0, 2);
+  return cards.length === 2 ? [cards[0]!, cards[1]!] : null;
 }

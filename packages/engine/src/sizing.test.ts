@@ -38,8 +38,8 @@ describe('preflop sizing', () => {
   it('clamps sizes below the minimum raise up to the minimum', () => {
     const state = hand();
     const legal = legalActions(state)!;
-    // A third of the pot would be a raise to 183, below the 200 minimum.
-    expect(fractionOfPotTo(state, legal, 0.33)).toBe(200);
+    // A quarter of the pot would be a raise to 163, below the 200 minimum.
+    expect(fractionOfPotTo(state, legal, 0.25)).toBe(200);
   });
 
   it('clamps sizes above the effective stack down to all-in', () => {
@@ -51,22 +51,37 @@ describe('preflop sizing', () => {
     expect(multipleOfBetTo(state, legal, 3)).toBe(300);
   });
 
-  it('sorts buttons by size, drops duplicates and ends with all-in', () => {
+  it('shows only multiples of the bet, sorted, with no pot fractions', () => {
     const options = sizes(hand());
-    expect(options.map((option) => option.to)).toEqual([200, 250, 300, 225, 288, 350, 10_000].sort((a, b) => a - b));
-    expect(options[0]!.label).toBe('Min');
-    expect(options.at(-1)!).toMatchObject({ label: 'All-in', to: 10_000, allIn: true });
-    expect(new Set(options.map((option) => option.to)).size).toBe(options.length);
+    expect(options.map((option) => [option.label, option.to])).toEqual([
+      ['2x', 200],
+      ['2.2x', 220],
+      ['2.5x', 250],
+      ['3x', 300],
+    ]);
+    // The minimum and the all-in belong to the slider, not to these buttons.
+    expect(options.some((option) => option.label === 'Min' || option.label === 'All-in')).toBe(false);
   });
 
   it('reports what each size costs the player', () => {
     const state = play(hand(), { type: 'raise', to: 300 });
     const options = sizes(state);
-    const min = options.find((option) => option.label === 'Min')!;
-    // The open was 200 over the blind, so the minimum re-raise is to 500.
-    expect(min.to).toBe(500);
-    // The big blind already has 100 in, so that costs 400 more.
-    expect(min.amount).toBe(400);
+    // Facing a raise to 300, a 3x re-raise is to 900.
+    const threeX = options.find((option) => option.label === '3x')!;
+    expect(threeX.to).toBe(900);
+    // The big blind already has 100 in, so that costs 800 more.
+    expect(threeX.amount).toBe(800);
+  });
+
+  it('drops the multiples the stack cannot reach', () => {
+    // The big blind has 250, so 3x is capped onto 2.5x and the pair collapse.
+    expect(sizes(hand({ stacks: [10_000, 250] })).map((option) => option.to)).toEqual([200, 220, 250]);
+  });
+
+  it('collapses to a single all-in once every multiple is out of reach', () => {
+    const options = sizes(hand({ stacks: [10_000, 150] }));
+    expect(options).toHaveLength(1);
+    expect(options[0]).toMatchObject({ to: 150, allIn: true });
   });
 });
 
@@ -76,12 +91,24 @@ describe('postflop sizing', () => {
     expect(state.street).toBe('flop');
     expect(state.pot).toBe(250);
     const options = sizes(state);
+    // A quarter of 250 is below the 100 minimum bet, so it lands on the minimum
+    // and is then the same size as 40%.
     expect(options.map((option) => [option.label, option.to])).toEqual([
-      ['Min', 100],
-      ['50%', 125],
-      ['75%', 188],
-      ['Pot', 250],
-      ['All-in', 9_900],
+      ['25%', 100],
+      ['66%', 165],
+      ['100%', 250],
+    ]);
+    expect(options.some((option) => option.label.endsWith('x'))).toBe(false);
+  });
+
+  it('keeps all four fractions apart once the pot is big enough', () => {
+    const state = play(hand(), { type: 'raise', to: 1_000 }, { type: 'call' });
+    expect(state.pot).toBe(2_050);
+    expect(sizes(state).map((option) => [option.label, option.to])).toEqual([
+      ['25%', 513],
+      ['40%', 820],
+      ['66%', 1_353],
+      ['100%', 2_050],
     ]);
   });
 

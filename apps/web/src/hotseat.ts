@@ -140,7 +140,10 @@ function dealNext(current: HotSeatState, isFirstHand: boolean): HotSeatState {
 
   const handNumber = current.handNumber + 1;
   try {
-    const hand = createHand(configForSettings(settings, stacks), { handNumber });
+    const hand = createHand(configForSettings(settings, stacks), {
+      handNumber,
+      ranges: settings.ranges,
+    });
     return { ...current, hand, handNumber, bankroll, error: null };
   } catch (error) {
     return { ...current, hand: null, error: error instanceof Error ? error.message : String(error) };

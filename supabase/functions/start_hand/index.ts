@@ -67,7 +67,12 @@ Deno.serve(
 
     const handNumber = room.hand_number + 1;
     const deck = shuffledDeck(cryptoRandomInt);
-    const hand = createHand(configForSettings(settings, stacks), { deck, handNumber });
+    const hand = createHand(configForSettings(settings, stacks), {
+      deck,
+      handNumber,
+      randomInt: cryptoRandomInt,
+      ranges: settings.ranges,
+    });
 
     // The deck as dealt, for audit. No client can read this table.
     const { error: deckError } = await client

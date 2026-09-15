@@ -7,8 +7,11 @@ import {
   presetsForTableSize,
   type AnteType,
   type Position,
+  type Range,
 } from 'engine';
 import type { Settings } from '../hotseat.js';
+import { defaultRangesFor, useRangeLibrary } from '../ranges.js';
+import { RangeEditor } from './RangeEditor.js';
 
 interface Props {
   settings: Settings;
@@ -37,6 +40,7 @@ export function SetupScreen({
   busy = false,
   showLocalOptions = true,
 }: Props) {
+  const library = useRangeLibrary();
   const seats = preflopOrder(settings.tableSize);
   const presets = presetsForTableSize(settings.tableSize);
   const activePreset = presets.find(
@@ -44,13 +48,20 @@ export function SetupScreen({
       preset.positions[0] === settings.positions[0] && preset.positions[1] === settings.positions[1],
   );
 
+  /** A seat's range follows its position, preferring one you have saved. */
+  const withRanges = (positions: [Position, Position]): Partial<Settings> => ({
+    positions,
+    ranges: defaultRangesFor(library, positions),
+  });
+
   const setTableSize = (tableSize: number): void => {
-    const update: Partial<Settings> = { tableSize };
     // Keep the spot valid: fall back to the button (or small blind) vs the big blind.
     if (!settings.positions.every((position) => isPositionAtTable(position, tableSize))) {
-      update.positions = tableSize === 2 ? ['SB', 'BB'] : ['BTN', 'BB'];
+      const positions: [Position, Position] = tableSize === 2 ? ['SB', 'BB'] : ['BTN', 'BB'];
+      onChange({ tableSize, ...withRanges(positions) });
+      return;
     }
-    onChange(update);
+    onChange({ tableSize });
   };
 
   const setPosition = (seat: 0 | 1, position: Position): void => {
@@ -60,7 +71,13 @@ export function SetupScreen({
       // Swap rather than reject, so the picker never gets stuck.
       positions[seat === 0 ? 1 : 0] = settings.positions[seat];
     }
-    onChange({ positions });
+    onChange(withRanges(positions));
+  };
+
+  const setRange = (seat: 0 | 1, range: Range): void => {
+    const ranges: [Range, Range] = [...settings.ranges];
+    ranges[seat] = range;
+    onChange({ ranges });
   };
 
   const setBigBlind = (bigBlind: number): void => {
@@ -187,10 +204,10 @@ export function SetupScreen({
         </div>
         <p className="subtle">
           {settings.anteType === 'bb'
-            ? 'The big blind seat posts one ante for the whole table. It is dead money, not part of their bet.'
+            ? 'The big blind posts one ante for the table, as dead money.'
             : settings.anteType === 'per-player'
-              ? `Every one of the ${settings.tableSize} seats antes; the seats that are not in play leave theirs behind.`
-              : 'No antes — only the folded blinds are dead money.'}
+              ? `All ${settings.tableSize} seats ante; the folded ones leave theirs behind.`
+              : 'Only the folded blinds are dead money.'}
         </p>
       </section>
 
@@ -243,6 +260,26 @@ export function SetupScreen({
               </label>
             </>
           )}
+        </div>
+      </section>
+
+      <section className="panel">
+        <h2>Hands dealt</h2>
+        <p className="subtle">
+          Each seat is dealt only from its range. Approximate opening ranges, not solver
+          exports — edit them freely.
+        </p>
+        <div className="range-pair">
+          {([0, 1] as const).map((seat) => (
+            <RangeEditor
+              key={seat}
+              position={settings.positions[seat]}
+              range={settings.ranges[seat]}
+              onChange={(range) => setRange(seat, range)}
+              otherPosition={settings.positions[seat === 0 ? 1 : 0]}
+              onCopyToOther={(range) => setRange(seat === 0 ? 1 : 0, range)}
+            />
+          ))}
         </div>
       </section>
 

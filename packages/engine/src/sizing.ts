@@ -44,16 +44,20 @@ export function multipleOfBetTo(state: HandView, legal: LegalActions, multiple: 
   return clampTo(legal, opening, raw);
 }
 
-export const DEFAULT_POT_FRACTIONS = [0.33, 0.5, 0.75, 1] as const;
-export const DEFAULT_PREFLOP_MULTIPLES = [2, 2.5, 3] as const;
-
-function label(fraction: number): string {
-  return fraction === 1 ? 'Pot' : `${Math.round(fraction * 100)}%`;
-}
+/**
+ * Preflop is sized off the current bet and postflop off the pot, so the two
+ * streets get their own presets rather than one mixed row.
+ */
+export const DEFAULT_PREFLOP_MULTIPLES = [2, 2.2, 2.5, 3] as const;
+export const DEFAULT_POT_FRACTIONS = [0.25, 0.4, 0.66, 1] as const;
 
 /**
- * The sizing buttons to show for the player to act. Returns an empty list when
- * the player cannot bet or raise. Duplicate sizes are collapsed.
+ * The sizing presets for the player to act: multiples of the bet preflop,
+ * fractions of the pot after it. Returns an empty list when the player cannot
+ * bet or raise. Sizes that collapse onto each other — which happens once a
+ * stack is short enough that several of them are all-in — are shown once.
+ *
+ * The minimum and the all-in live on the slider rather than here.
  */
 export function sizingOptions(state: HandView, legal: LegalActions): SizingOption[] {
   const opening = state.currentBet === 0;
@@ -71,18 +75,20 @@ export function sizingOptions(state: HandView, legal: LegalActions): SizingOptio
     });
   };
 
-  push('Min', opening ? legal.minBetTo : legal.minRaiseTo, 'min');
-
   if (state.street === 'preflop') {
     for (const multiple of DEFAULT_PREFLOP_MULTIPLES) {
       push(`${multiple}x`, multipleOfBetTo(state, legal, multiple), 'multiplier');
     }
-  }
-  for (const fraction of DEFAULT_POT_FRACTIONS) {
-    push(label(fraction), fractionOfPotTo(state, legal, fraction), fraction === 1 ? 'pot' : 'fraction');
+  } else {
+    for (const fraction of DEFAULT_POT_FRACTIONS) {
+      push(
+        `${Math.round(fraction * 100)}%`,
+        fractionOfPotTo(state, legal, fraction),
+        fraction === 1 ? 'pot' : 'fraction',
+      );
+    }
   }
 
-  push('All-in', legal.maxTo, 'all-in');
   return options.sort((a, b) => a.to - b.to);
 }
 

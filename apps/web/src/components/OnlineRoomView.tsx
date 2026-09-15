@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { POSITION_LABELS, type PlayerIndex, type PublicHandState } from 'engine';
 import { useOnlineRoom } from '../supabase/room.js';
-import { chips, chipsWithBb, signed } from '../format.js';
 import { ActionBar } from './ActionBar.js';
 import { ActionLog } from './ActionLog.js';
+import { HandResult } from './HandResult.js';
 import { HistoryPanel } from './HistoryPanel.js';
-import { TableView } from './TableView.js';
+import { PokerTable } from './PokerTable.js';
 import type { FinishedHand } from '../hotseat.js';
 
 interface Props {
@@ -111,10 +111,12 @@ export function OnlineRoomView({ roomId, code, onLeave }: Props) {
       )}
 
       {hand && (
-        <TableView
+        <PokerTable
           hand={hand}
           nameOfSeat={(seat) => names[seat]}
           visibleSeats={visibleSeats(hand, room.mySeat)}
+          // Your own seat sits at the bottom of the table, as at a real one.
+          heroSeat={room.mySeat ?? 0}
         />
       )}
 
@@ -136,7 +138,7 @@ export function OnlineRoomView({ roomId, code, onLeave }: Props) {
           </p>
         )}
 
-        {hand?.complete && <Result hand={hand} names={names} />}
+        {hand?.complete && <HandResult hand={hand} nameOfSeat={(seat) => names[seat]} />}
 
         {canDeal && (
           <div className="row" style={{ marginTop: hand ? '0.75rem' : 0 }}>
@@ -170,33 +172,4 @@ function visibleSeats(hand: PublicHandState, mySeat: PlayerIndex | null): Player
     if (player.holeCards !== null) seats.add(player.index);
   }
   return [...seats];
-}
-
-function Result({ hand, names }: { hand: PublicHandState; names: [string, string] }) {
-  const result = hand.result;
-  if (!result) return null;
-
-  const headline =
-    result.winners.length === 2
-      ? 'Split pot'
-      : `${names[result.winners[0]!]} wins ${chips(result.awarded[result.winners[0]!])}`;
-
-  return (
-    <div className="result">
-      <strong>{headline}</strong>
-      {result.hands?.map((value, seat) => (
-        <div key={seat} className="subtle">
-          {names[seat]}: {value.description}
-        </div>
-      ))}
-      <div className="net">
-        {([0, 1] as const).map((seat) => (
-          <span key={seat} style={{ marginRight: '1rem' }}>
-            {names[seat]} {signed(result.net[seat])} →{' '}
-            {chipsWithBb(hand.players[seat].stack, hand.config.bigBlind)}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
 }

@@ -1,6 +1,14 @@
-import { useEffect, useState } from 'react';
-import { legalActions, sizingOptions, toBigBlinds, type Action, type HandView } from 'engine';
-import { chips } from '../format.js';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  legalActions,
+  oddsFacing,
+  oddsLaid,
+  sizingOptions,
+  type Action,
+  type HandView,
+} from 'engine';
+import { useAmounts } from '../display.js';
+import { PotOddsLine } from './PotOddsLine.js';
 
 interface Props {
   hand: HandView;
@@ -11,94 +19,150 @@ interface Props {
   disabled?: boolean;
 }
 
+/**
+ * Presets set the size and the slider fine-tunes it; the coloured button on the
+ * right commits it. Nothing bets on a single click, which matters when the
+ * difference between a min-raise and a shove is one mis-tap.
+ */
 export function ActionBar({ hand, onAct, actorName, disabled = false }: Props) {
+  const amounts = useAmounts(hand.config.bigBlind);
   const legal = legalActions(hand);
   const opening = hand.currentBet === 0;
-  const [custom, setCustom] = useState('');
 
-  // Clear the custom box whenever the decision changes.
+  const minTo = legal ? (opening ? legal.minBetTo : legal.minRaiseTo) : 0;
+  const maxTo = legal?.maxTo ?? 0;
+  const canAggress = legal?.types.includes(opening ? 'bet' : 'raise') ?? false;
+
+  const [raiseTo, setRaiseTo] = useState(minTo);
+  const [typed, setTyped] = useState<string | null>(null);
+
+  // A new decision resets the size back to the minimum.
+  const decision = `${hand.handNumber}:${hand.street}:${hand.events.length}:${hand.toAct}`;
   useEffect(() => {
-    setCustom('');
-  }, [hand.toAct, hand.street, hand.currentBet, hand.events.length]);
+    setRaiseTo(minTo);
+    setTyped(null);
+  }, [decision, minTo]);
+
+  const sizes = useMemo(() => (legal ? sizingOptions(hand, legal) : []), [hand, legal]);
+
+  const facing = legal && legal.callAmount > 0 ? oddsFacing(hand, legal.player) : null;
+  const laying = canAggress ? oddsLaid(hand, legal!.player, raiseTo) : null;
 
   if (!legal) return null;
 
-  const sizes = sizingOptions(hand, legal);
-  const canAggress = legal.types.includes(opening ? 'bet' : 'raise');
-  const minTo = opening ? legal.minBetTo : legal.minRaiseTo;
-  const customTo = Number(custom);
-  const customValid =
-    Number.isInteger(customTo) && customTo >= minTo && customTo <= legal.maxTo && custom.trim() !== '';
+  const clamp = (value: number): number => Math.max(minTo, Math.min(maxTo, Math.round(value)));
+  // Sizes are capped at the effective stack, so the deeper player can reach the
+  // maximum while still having chips behind. Only call it all-in when it is.
+  const me = hand.players[legal.player];
+  const isAllIn = raiseTo >= me.committedThisStreet + me.stack;
+  const callIsAllIn =
+    legal.callAmount >= maxTo - hand.players[legal.player].committedThisStreet && legal.callAmount > 0;
 
-  const aggress = (to: number): void => onAct({ type: opening ? 'bet' : 'raise', to });
+  const commitTyped = (): void => {
+    if (typed === null) return;
+    const value = Number(typed);
+    if (!Number.isNaN(value)) setRaiseTo(clamp(amounts.toChips(value)));
+    setTyped(null);
+  };
 
   return (
     <div className="action-bar">
-      <div className="subtle">
-        {actorName} to act — {hand.street}
-      </div>
-
-      <div className="action-main">
-        {legal.types.includes('fold') && (
-          <button onClick={() => onAct({ type: 'fold' })} disabled={disabled}>
-            Fold
-          </button>
-        )}
-        {legal.types.includes('check') && (
-          <button onClick={() => onAct({ type: 'check' })} disabled={disabled}>
-            Check
-          </button>
-        )}
-        {legal.types.includes('call') && (
-          <button onClick={() => onAct({ type: 'call' })} disabled={disabled}>
-            Call {chips(legal.callAmount)}
-            {legal.callAmount >= legal.maxTo - hand.players[legal.player].committedThisStreet
-              ? ' (all-in)'
-              : ''}
-          </button>
-        )}
+      <div className="action-head">
+        <span className="subtle">
+          {actorName} to act — {hand.street}
+        </span>
+        {facing && <PotOddsLine odds={facing} kind="facing" />}
       </div>
 
       {canAggress && (
-        <>
+        <div className="sizing">
           <div className="sizes">
             {sizes.map((size) => (
               <button
                 key={`${size.label}-${size.to}`}
-                className={customTo === size.to ? 'selected' : undefined}
-                onClick={() => aggress(size.to)}
+                type="button"
+                className={raiseTo === size.to ? 'size selected' : 'size'}
+                onClick={() => setRaiseTo(size.to)}
                 disabled={disabled}
-                title={`${opening ? 'Bet' : 'Raise'} to ${chips(size.to)} — ${chips(size.amount)} more`}
+                title={`${opening ? 'Bet' : 'Raise'} to ${amounts.format(size.to)}`}
               >
-                {size.label} · {chips(size.to)}
+                {size.label}
               </button>
             ))}
           </div>
 
-          <div className="custom">
+          <div className="slider-row">
             <input
-              type="number"
-              inputMode="numeric"
+              className="slider"
+              type="range"
               min={minTo}
-              max={legal.maxTo}
+              max={maxTo}
               step={1}
-              placeholder={`${chips(minTo)}–${chips(legal.maxTo)}`}
-              value={custom}
-              onChange={(event) => setCustom(event.target.value)}
+              value={raiseTo}
+              onChange={(event) => setRaiseTo(clamp(Number(event.target.value)))}
+              disabled={disabled}
+              aria-label={`${opening ? 'Bet' : 'Raise'} size`}
+            />
+            <input
+              className="amount"
+              type="number"
+              inputMode="decimal"
+              step={amounts.inBigBlinds ? 0.5 : 1}
+              value={typed ?? amounts.fromChips(raiseTo)}
+              onChange={(event) => setTyped(event.target.value)}
+              onBlur={commitTyped}
               onKeyDown={(event) => {
-                if (event.key === 'Enter' && customValid) aggress(customTo);
+                if (event.key === 'Enter') commitTyped();
               }}
+              disabled={disabled}
               aria-label={`${opening ? 'Bet' : 'Raise'} to`}
             />
-            <button disabled={disabled || !customValid} onClick={() => aggress(customTo)}>
-              {opening ? 'Bet' : 'Raise'} to
+            <button
+              type="button"
+              className="size"
+              onClick={() => setRaiseTo(maxTo)}
+              disabled={disabled}
+              title="All-in for the effective stack"
+            >
+              Max
             </button>
-            <span className="subtle">
-              min {chips(minTo)} · max {chips(legal.maxTo)} ({toBigBlinds(legal.maxTo, hand.config.bigBlind)})
-            </span>
           </div>
-        </>
+
+          {laying && <PotOddsLine odds={laying} kind="laying" />}
+        </div>
       )}
+
+      <div className="action-main">
+        {legal.types.includes('fold') && (
+          <button className="act fold" onClick={() => onAct({ type: 'fold' })} disabled={disabled}>
+            Fold
+          </button>
+        )}
+
+        {legal.types.includes('check') && (
+          <button className="act call" onClick={() => onAct({ type: 'check' })} disabled={disabled}>
+            Check
+          </button>
+        )}
+
+        {legal.types.includes('call') && (
+          <button className="act call" onClick={() => onAct({ type: 'call' })} disabled={disabled}>
+            Call <span className="act-amount">{amounts.format(legal.callAmount)}</span>
+            {callIsAllIn && <span className="act-note">all-in</span>}
+          </button>
+        )}
+
+        {canAggress && (
+          <button
+            className="act raise"
+            onClick={() => onAct({ type: opening ? 'bet' : 'raise', to: raiseTo })}
+            disabled={disabled}
+          >
+            {isAllIn ? 'All-in' : opening ? 'Bet' : 'Raise to'}{' '}
+            <span className="act-amount">{amounts.format(raiseTo)}</span>
+          </button>
+        )}
+      </div>
     </div>
   );
 }

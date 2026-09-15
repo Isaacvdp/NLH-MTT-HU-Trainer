@@ -9,6 +9,7 @@
 
 import type { RandomInt } from './cards.js';
 import { MAX_TABLE_SIZE, MIN_TABLE_SIZE, isPositionAtTable, type Position } from './positions.js';
+import { defaultRangeFor, parseRangeArray, type Range } from './range.js';
 import { validateSpotConfig } from './setup.js';
 import type { AnteType, SpotConfig } from './types.js';
 
@@ -31,6 +32,11 @@ export interface RoomSettings {
   revealHandsAfterHand: boolean;
   carryStacksOver: boolean;
   playerNames: [string, string];
+  /**
+   * The starting hands each seat is dealt from, aligned with `positions`. An
+   * empty range means any two cards.
+   */
+  ranges: [Range, Range];
 }
 
 export const DEFAULT_ROOM_SETTINGS: RoomSettings = {
@@ -48,6 +54,7 @@ export const DEFAULT_ROOM_SETTINGS: RoomSettings = {
   revealHandsAfterHand: false,
   carryStacksOver: false,
   playerNames: ['Player 1', 'Player 2'],
+  ranges: [defaultRangeFor('BTN'), defaultRangeFor('BB')],
 };
 
 /** Guard rails so a hostile or buggy client cannot ask for an absurd table. */
@@ -156,12 +163,22 @@ export function parseRoomSettings(input: unknown): RoomSettings {
     revealHandsAfterHand: boolField(source, 'revealHandsAfterHand'),
     carryStacksOver: boolField(source, 'carryStacksOver'),
     playerNames,
+    ranges: parseRanges(source['ranges'], positions),
   };
 
   // Catch anything the engine itself would reject, using the smallest stack the
   // settings can produce.
   validateSpotConfig(configForSettings(settings, [bigBlind, bigBlind]));
   return settings;
+}
+
+/** Reads the two ranges, falling back to each seat's default when absent. */
+function parseRanges(input: unknown, positions: [Position, Position]): [Range, Range] {
+  if (input === undefined || input === null) {
+    return [defaultRangeFor(positions[0]), defaultRangeFor(positions[1])];
+  }
+  if (!Array.isArray(input) || input.length !== 2) fail('ranges must be two lists of hands');
+  return [parseRangeArray(input[0]), parseRangeArray(input[1])];
 }
 
 /** Builds the config for one hand from the room settings and the two stacks. */

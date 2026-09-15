@@ -5,7 +5,7 @@
  * anything is stored, so a hand can always be dealt from them later.
  */
 
-import { parseRoomSettings, SettingsError } from '../_shared/engine/index.ts';
+import { parseRoomSettings, RangeError, SettingsError } from '../_shared/engine/index.ts';
 import { badRequest, handle, json } from '../_shared/http.ts';
 import { requireUser, serviceClient } from '../_shared/supabase.ts';
 
@@ -35,7 +35,9 @@ Deno.serve(
     try {
       settings = parseRoomSettings(body.settings);
     } catch (error) {
-      if (error instanceof SettingsError) throw badRequest(error.message);
+      if (error instanceof SettingsError || error instanceof RangeError) {
+        throw badRequest(error.message);
+      }
       throw error;
     }
 

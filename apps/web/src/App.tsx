@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import { POSITION_LABELS, configForSettings, spotLabel, type PlayerIndex } from 'engine';
-import { useHotSeat, type HotSeatState } from './hotseat.js';
+import { useHotSeat } from './hotseat.js';
 import { ActionBar } from './components/ActionBar.js';
 import { ActionLog } from './components/ActionLog.js';
+import { DisplaySettings } from './components/DisplaySettings.js';
+import { HandResult } from './components/HandResult.js';
 import { HistoryPanel, seatVisibility } from './components/HistoryPanel.js';
 import { Lobby } from './components/Lobby.js';
 import { OnlineRoomView } from './components/OnlineRoomView.js';
+import { PokerTable } from './components/PokerTable.js';
 import { SetupScreen } from './components/SetupScreen.js';
-import { TableView } from './components/TableView.js';
 import { isSupabaseConfigured } from './supabase/client.js';
-import { chips, chipsWithBb, signed } from './format.js';
 
 type Screen =
   | { name: 'home' }
@@ -51,25 +52,15 @@ export function App() {
     <div className="app">
       <header className="app-header">
         <h1>
-          <button
-            onClick={() => go({ name: 'home' })}
-            style={{ all: 'unset', cursor: 'pointer' }}
-          >
+          <button onClick={() => go({ name: 'home' })} style={{ all: 'unset', cursor: 'pointer' }}>
             Hold&apos;em MTT Spot Trainer
           </button>
         </h1>
-        <div className="subtle">
-          {spotLabel(configForSettings(settings, [0, 0]))} · {chips(settings.smallBlind)}/
-          {chips(settings.bigBlind)}
-          {settings.anteType !== 'none' && ` · ante ${chips(settings.ante)}`}
-        </div>
+        <DisplaySettings />
       </header>
 
       {screen.name === 'home' && (
-        <Home
-          onHotSeat={() => go({ name: 'hotseat' })}
-          onOnline={() => go({ name: 'lobby' })}
-        />
+        <Home onHotSeat={() => go({ name: 'hotseat' })} onOnline={() => go({ name: 'lobby' })} />
       )}
 
       {screen.name === 'lobby' && (
@@ -83,16 +74,10 @@ export function App() {
       )}
 
       {screen.name === 'room' && (
-        <OnlineRoomView
-          roomId={screen.roomId}
-          code={screen.code}
-          onLeave={() => go({ name: 'home' })}
-        />
+        <OnlineRoomView roomId={screen.roomId} code={screen.code} onLeave={() => go({ name: 'home' })} />
       )}
 
-      {screen.name === 'hotseat' && (
-        <HotSeat hotSeat={hotSeat} onBack={() => go({ name: 'home' })} />
-      )}
+      {screen.name === 'hotseat' && <HotSeat hotSeat={hotSeat} onBack={() => go({ name: 'home' })} />}
     </div>
   );
 }
@@ -160,20 +145,34 @@ function HotSeat({ hotSeat, onBack }: HotSeatProps) {
 
   return (
     <div className="stack">
+      <div className="subtle">
+        {spotLabel(configForSettings(settings, [0, 0]))} · hand #{hand.handNumber}
+      </div>
+
       {state.error && <div className="error">{state.error}</div>}
 
-      <TableView
+      <PokerTable
         hand={hand}
         nameOfSeat={nameOfSeat}
         visibleSeats={seatVisibility(hand, {
           hideWaiting: settings.hideWaitingPlayer,
           reveal: settings.revealHandsAfterHand,
         })}
+        // On one screen there is no single hero, so keep the layout still and
+        // put the player who acts first postflop at the bottom.
+        heroSeat={0}
       />
 
       <section className="panel">
         {hand.complete ? (
-          <Result state={state} nameOfSeat={nameOfSeat} onNext={nextHand} />
+          <>
+            <HandResult hand={hand} nameOfSeat={nameOfSeat} />
+            <div className="row" style={{ marginTop: '0.75rem' }}>
+              <button className="primary" onClick={nextHand}>
+                Next hand
+              </button>
+            </div>
+          </>
         ) : (
           <ActionBar hand={hand} onAct={act} actorName={nameOfSeat(hand.toAct as PlayerIndex)} />
         )}
@@ -191,47 +190,6 @@ function HotSeat({ hotSeat, onBack }: HotSeatProps) {
 
       <div className="row">
         <button onClick={endSession}>Back to setup</button>
-      </div>
-    </div>
-  );
-}
-
-interface ResultProps {
-  state: HotSeatState;
-  nameOfSeat: (seat: PlayerIndex) => string;
-  onNext: () => void;
-}
-
-function Result({ state, nameOfSeat, onNext }: ResultProps) {
-  const hand = state.hand;
-  const result = hand?.result;
-  if (!hand || !result) return null;
-
-  const headline =
-    result.winners.length === 2
-      ? 'Split pot'
-      : `${nameOfSeat(result.winners[0]!)} wins ${chips(result.awarded[result.winners[0]!])}`;
-
-  return (
-    <div className="result">
-      <strong>{headline}</strong>
-      {result.hands?.map((value, seat) => (
-        <div key={seat} className="subtle">
-          {nameOfSeat(seat as PlayerIndex)}: {value.description}
-        </div>
-      ))}
-      <div className="net">
-        {([0, 1] as const).map((seat) => (
-          <span key={seat} style={{ marginRight: '1rem' }}>
-            {nameOfSeat(seat)} {signed(result.net[seat])} →{' '}
-            {chipsWithBb(hand.players[seat].stack, hand.config.bigBlind)}
-          </span>
-        ))}
-      </div>
-      <div className="row" style={{ marginTop: '0.75rem' }}>
-        <button className="primary" onClick={onNext}>
-          Next hand
-        </button>
       </div>
     </div>
   );

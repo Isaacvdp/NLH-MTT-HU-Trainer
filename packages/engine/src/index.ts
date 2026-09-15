@@ -9,3 +9,6 @@ export * from './history.js';
 export * from './presets.js';
 export * from './public.js';
 export * from './room.js';
+export * from './odds.js';
+export * from './hands.js';
+export * from './range.js';
