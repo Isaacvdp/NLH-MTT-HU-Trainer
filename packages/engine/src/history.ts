@@ -8,7 +8,7 @@
 
 import type { Card } from './cards.js';
 import { POSITION_LABELS, type Position, buttonPosition, postflopOrder, preflopOrder } from './positions.js';
-import type { HandEvent, HandState, PlayerIndex, Street } from './types.js';
+import type { HandEvent, HandView, PlayerIndex, Street } from './types.js';
 
 export interface HistoryOptions {
   handId?: number | string;
@@ -51,7 +51,7 @@ interface Seat {
   player: PlayerIndex | null;
 }
 
-function buildSeats(state: HandState, options: HistoryOptions): Seat[] {
+function buildSeats(state: HandView, options: HistoryOptions): Seat[] {
   const { config } = state;
   const names = options.playerNames;
   const order = postflopOrder(config.tableSize);
@@ -134,7 +134,7 @@ function emitStreetActions(
   }
 }
 
-export function handHistory(state: HandState, options: HistoryOptions = {}): string {
+export function handHistory(state: HandView, options: HistoryOptions = {}): string {
   const { config } = state;
   const includeDead = options.includeDeadSeats ?? true;
   const seats = buildSeats(state, options);
@@ -299,6 +299,6 @@ export function handHistory(state: HandState, options: HistoryOptions = {}): str
 }
 
 /** Concatenates several hand histories, newest last, for export. */
-export function handHistories(states: HandState[], options: HistoryOptions = {}): string {
+export function handHistories(states: HandView[], options: HistoryOptions = {}): string {
   return states.map((state, i) => handHistory(state, { ...options, handId: options.handId ?? state.handNumber ?? i + 1 })).join('\n\n');
 }

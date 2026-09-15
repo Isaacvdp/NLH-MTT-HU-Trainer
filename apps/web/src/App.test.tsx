@@ -8,28 +8,66 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 import { App } from './App.js';
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  window.history.pushState({}, '', '/');
+});
 
-async function dealFirstHand() {
+/** Renders the app and walks to the hot-seat setup screen. */
+async function openHotSeat() {
   const user = userEvent.setup();
   render(<App />);
+  await user.click(screen.getByRole('button', { name: 'Start a hot-seat session' }));
+  return user;
+}
+
+async function dealFirstHand() {
+  const user = await openHotSeat();
   await user.click(screen.getByRole('button', { name: 'Deal first hand' }));
   return user;
 }
 
 const felt = (): HTMLElement => document.querySelector('.felt') as HTMLElement;
 
-describe('setup screen', () => {
-  it('shows the default spot and its presets', async () => {
+describe('home screen', () => {
+  it('offers both ways to play', () => {
     render(<App />);
     expect(screen.getByRole('heading', { name: /MTT Spot Trainer/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Create or join a room' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Start a hot-seat session' })).toBeTruthy();
+  });
+
+  it('opens the lobby with both ways in', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole('button', { name: 'Create or join a room' }));
+    expect(screen.getByRole('button', { name: 'Set up a new room' })).toBeTruthy();
+    expect(screen.getByLabelText('Room code')).toBeTruthy();
+  });
+
+  it('opens the lobby straight from a share link, with the code filled in', () => {
+    window.history.pushState({}, '', '/room/ABC123');
+    render(<App />);
+    expect((screen.getByLabelText('Room code') as HTMLInputElement).value).toBe('ABC123');
+    expect(screen.getByRole('button', { name: 'Join' })).toBeTruthy();
+  });
+
+  it('takes a lowercase share link and normalises the code', () => {
+    window.history.pushState({}, '', '/room/abc123');
+    render(<App />);
+    expect((screen.getByLabelText('Room code') as HTMLInputElement).value).toBe('ABC123');
+  });
+});
+
+describe('setup screen', () => {
+  it('shows the default spot and its presets', async () => {
+    await openHotSeat();
     expect(screen.getByText(/BTN vs BB \(9-handed\)/)).toBeTruthy();
     expect(screen.getByText(/big blind seat posts one ante/i)).toBeTruthy();
   });
 
   it('keeps the spot valid when the table shrinks', async () => {
-    const user = userEvent.setup();
-    render(<App />);
+    const user = await openHotSeat();
     const preset = screen.getByLabelText('Preset') as HTMLSelectElement;
     await user.selectOptions(preset, 'utg-vs-bb');
     expect(screen.getByText(/UTG vs BB \(9-handed\)/)).toBeTruthy();

@@ -3,7 +3,7 @@
  * fractions of the pot, and all-in. Every size is clamped to what is legal.
  */
 
-import type { HandState, LegalActions } from './types.js';
+import type { HandView, LegalActions } from './types.js';
 
 export type SizingKind = 'min' | 'multiplier' | 'fraction' | 'pot' | 'all-in';
 
@@ -19,7 +19,7 @@ export interface SizingOption {
 }
 
 /** Pot size once the player to act has called — the base for pot-fraction raises. */
-export function potAfterCall(state: HandState, legal: LegalActions): number {
+export function potAfterCall(state: HandView, legal: LegalActions): number {
   return state.pot + legal.callAmount;
 }
 
@@ -29,7 +29,7 @@ function clampTo(legal: LegalActions, opening: boolean, to: number): number {
 }
 
 /** Raise/bet total for `fraction` of the pot (0.5 = half pot). */
-export function fractionOfPotTo(state: HandState, legal: LegalActions, fraction: number): number {
+export function fractionOfPotTo(state: HandView, legal: LegalActions, fraction: number): number {
   const opening = state.currentBet === 0;
   const raw = opening
     ? state.pot * fraction
@@ -38,7 +38,7 @@ export function fractionOfPotTo(state: HandState, legal: LegalActions, fraction:
 }
 
 /** Raise total for a multiple of the current bet, e.g. a 2.5x preflop open. */
-export function multipleOfBetTo(state: HandState, legal: LegalActions, multiple: number): number {
+export function multipleOfBetTo(state: HandView, legal: LegalActions, multiple: number): number {
   const opening = state.currentBet === 0;
   const raw = opening ? state.config.bigBlind * multiple : state.currentBet * multiple;
   return clampTo(legal, opening, raw);
@@ -55,7 +55,7 @@ function label(fraction: number): string {
  * The sizing buttons to show for the player to act. Returns an empty list when
  * the player cannot bet or raise. Duplicate sizes are collapsed.
  */
-export function sizingOptions(state: HandState, legal: LegalActions): SizingOption[] {
+export function sizingOptions(state: HandView, legal: LegalActions): SizingOption[] {
   const opening = state.currentBet === 0;
   if (!legal.types.includes(opening ? 'bet' : 'raise')) return [];
 

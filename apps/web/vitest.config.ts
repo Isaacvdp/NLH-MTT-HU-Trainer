@@ -13,5 +13,11 @@ export default defineConfig({
     include: ['src/**/*.test.tsx', 'src/**/*.test.ts'],
     environment: 'jsdom',
     globals: false,
+    // Pinned so the suite does not depend on whether a developer has a local
+    // .env.local. No request is ever made to these.
+    env: {
+      VITE_SUPABASE_URL: 'http://supabase.test',
+      VITE_SUPABASE_ANON_KEY: 'test-anon-key',
+    },
   },
 });

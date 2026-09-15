@@ -1,8 +1,8 @@
-import type { HandEvent, HandState, PlayerIndex } from 'engine';
+import type { HandEvent, HandView, PlayerIndex } from 'engine';
 import { chips } from '../format.js';
 
 interface Props {
-  hand: HandState;
+  hand: HandView;
   nameOfSeat: (seat: PlayerIndex) => string;
 }
 

@@ -1,9 +1,9 @@
-import { POSITION_LABELS, settledPot, toBigBlinds, type HandState, type PlayerIndex } from 'engine';
+import { POSITION_LABELS, settledPot, toBigBlinds, type HandView, type PlayerIndex } from 'engine';
 import { chips, chipsWithBb } from '../format.js';
 import { CardRow, PlayingCard } from './PlayingCard.js';
 
 interface Props {
-  hand: HandState;
+  hand: HandView;
   nameOfSeat: (seat: PlayerIndex) => string;
   /** Seats whose hole cards the viewer is allowed to see. */
   visibleSeats: PlayerIndex[];
@@ -35,7 +35,7 @@ export function TableView({ hand, nameOfSeat, visibleSeats }: Props) {
 }
 
 interface SeatProps {
-  hand: HandState;
+  hand: HandView;
   seat: PlayerIndex;
   nameOfSeat: (seat: PlayerIndex) => string;
   visible: boolean;

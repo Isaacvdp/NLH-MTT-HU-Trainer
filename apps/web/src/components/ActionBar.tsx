@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react';
-import { legalActions, sizingOptions, toBigBlinds, type Action, type HandState } from 'engine';
+import { legalActions, sizingOptions, toBigBlinds, type Action, type HandView } from 'engine';
 import { chips } from '../format.js';
 
 interface Props {
-  hand: HandState;
+  hand: HandView;
   onAct: (action: Action) => void;
   /** Name of whoever is to act, shown above the buttons. */
   actorName: string;
+  /** Blocks the buttons while an action is being sent to the server. */
+  disabled?: boolean;
 }
 
-export function ActionBar({ hand, onAct, actorName }: Props) {
+export function ActionBar({ hand, onAct, actorName, disabled = false }: Props) {
   const legal = legalActions(hand);
   const opening = hand.currentBet === 0;
   const [custom, setCustom] = useState('');
@@ -37,10 +39,18 @@ export function ActionBar({ hand, onAct, actorName }: Props) {
       </div>
 
       <div className="action-main">
-        {legal.types.includes('fold') && <button onClick={() => onAct({ type: 'fold' })}>Fold</button>}
-        {legal.types.includes('check') && <button onClick={() => onAct({ type: 'check' })}>Check</button>}
+        {legal.types.includes('fold') && (
+          <button onClick={() => onAct({ type: 'fold' })} disabled={disabled}>
+            Fold
+          </button>
+        )}
+        {legal.types.includes('check') && (
+          <button onClick={() => onAct({ type: 'check' })} disabled={disabled}>
+            Check
+          </button>
+        )}
         {legal.types.includes('call') && (
-          <button onClick={() => onAct({ type: 'call' })}>
+          <button onClick={() => onAct({ type: 'call' })} disabled={disabled}>
             Call {chips(legal.callAmount)}
             {legal.callAmount >= legal.maxTo - hand.players[legal.player].committedThisStreet
               ? ' (all-in)'
@@ -57,6 +67,7 @@ export function ActionBar({ hand, onAct, actorName }: Props) {
                 key={`${size.label}-${size.to}`}
                 className={customTo === size.to ? 'selected' : undefined}
                 onClick={() => aggress(size.to)}
+                disabled={disabled}
                 title={`${opening ? 'Bet' : 'Raise'} to ${chips(size.to)} — ${chips(size.amount)} more`}
               >
                 {size.label} · {chips(size.to)}
@@ -79,7 +90,7 @@ export function ActionBar({ hand, onAct, actorName }: Props) {
               }}
               aria-label={`${opening ? 'Bet' : 'Raise'} to`}
             />
-            <button disabled={!customValid} onClick={() => aggress(customTo)}>
+            <button disabled={disabled || !customValid} onClick={() => aggress(customTo)}>
               {opening ? 'Bet' : 'Raise'} to
             </button>
             <span className="subtle">

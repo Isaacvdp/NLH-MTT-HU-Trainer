@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { handHistory, type HandState, type PlayerIndex } from 'engine';
+import { handHistory, type HandView, type PlayerIndex } from 'engine';
 import type { FinishedHand } from '../hotseat.js';
 
 interface Props {
@@ -73,7 +73,7 @@ export function HistoryPanel({ finished }: Props) {
 }
 
 export function seatVisibility(
-  hand: HandState,
+  hand: HandView,
   options: { hideWaiting: boolean; reveal: boolean },
 ): PlayerIndex[] {
   if (hand.complete) {

@@ -15,6 +15,11 @@ interface Props {
   onChange: (update: Partial<Settings>) => void;
   onStart: () => void;
   error: string | null;
+  /** Text on the confirm button. Defaults to dealing a hot-seat hand. */
+  startLabel?: string;
+  busy?: boolean;
+  /** Hide the options that only apply when both players share one screen. */
+  showLocalOptions?: boolean;
 }
 
 const ANTE_LABELS: Record<AnteType, string> = {
@@ -23,7 +28,15 @@ const ANTE_LABELS: Record<AnteType, string> = {
   'per-player': 'Ante per player',
 };
 
-export function SetupScreen({ settings, onChange, onStart, error }: Props) {
+export function SetupScreen({
+  settings,
+  onChange,
+  onStart,
+  error,
+  startLabel = 'Deal first hand',
+  busy = false,
+  showLocalOptions = true,
+}: Props) {
   const seats = preflopOrder(settings.tableSize);
   const presets = presetsForTableSize(settings.tableSize);
   const activePreset = presets.find(
@@ -254,12 +267,14 @@ export function SetupScreen({ settings, onChange, onStart, error }: Props) {
             label="Reveal hands after each hand"
             hint="Show both holdings even when somebody folded."
           />
-          <Toggle
-            checked={settings.hideWaitingPlayer}
-            onChange={(hideWaitingPlayer) => onChange({ hideWaitingPlayer })}
-            label="Hide the waiting player's cards"
-            hint="For passing one device back and forth."
-          />
+          {showLocalOptions && (
+            <Toggle
+              checked={settings.hideWaitingPlayer}
+              onChange={(hideWaitingPlayer) => onChange({ hideWaitingPlayer })}
+              label="Hide the waiting player's cards"
+              hint="For passing one device back and forth."
+            />
+          )}
         </div>
 
         <div className="grid" style={{ marginTop: '1rem' }}>
@@ -280,8 +295,8 @@ export function SetupScreen({ settings, onChange, onStart, error }: Props) {
       </section>
 
       <div className="row">
-        <button className="primary" onClick={onStart}>
-          Deal first hand
+        <button className="primary" onClick={onStart} disabled={busy}>
+          {startLabel}
         </button>
       </div>
     </div>

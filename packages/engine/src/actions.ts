@@ -10,6 +10,7 @@ import type {
   Action,
   ActionType,
   HandState,
+  HandView,
   LegalActions,
   PlayerIndex,
   PlayerState,
@@ -31,7 +32,7 @@ function ownCap(player: PlayerState): number {
  * Highest street total that can matter: nobody can win more than the shorter
  * stack can put in, so bets are capped at the effective stack.
  */
-function effectiveCap(state: HandState, index: PlayerIndex): number {
+function effectiveCap(state: HandView, index: PlayerIndex): number {
   const player = state.players[index];
   const opponent = state.players[other(index)];
   if (opponent.status === 'folded') return ownCap(player);
@@ -39,21 +40,21 @@ function effectiveCap(state: HandState, index: PlayerIndex): number {
 }
 
 /** Street total this player must reach to stay in the hand. */
-function callTarget(state: HandState, index: PlayerIndex): number {
+function callTarget(state: HandView, index: PlayerIndex): number {
   return Math.min(state.currentBet, effectiveCap(state, index));
 }
 
 /** Players who still have chips behind and have not folded. */
-function contesting(state: HandState): PlayerState[] {
+function contesting(state: HandView): PlayerState[] {
   return state.players.filter((p) => p.status === 'active');
 }
 
-export function legalActions(state: HandState): LegalActions | null {
+export function legalActions(state: HandView): LegalActions | null {
   if (state.toAct === null || state.complete) return null;
   return legalActionsFor(state, state.toAct);
 }
 
-export function legalActionsFor(state: HandState, index: PlayerIndex): LegalActions {
+export function legalActionsFor(state: HandView, index: PlayerIndex): LegalActions {
   const player = state.players[index];
   const maxTo = effectiveCap(state, index);
   const toCall = callTarget(state, index);
@@ -410,6 +411,6 @@ export function normalizeNewHand(state: HandState): HandState {
 }
 
 /** Chips that were in the middle before the current street's betting. */
-export function settledPot(state: HandState): number {
+export function settledPot(state: HandView): number {
   return state.pot - state.players[0].committedThisStreet - state.players[1].committedThisStreet;
 }

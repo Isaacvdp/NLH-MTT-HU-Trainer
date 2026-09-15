@@ -133,6 +133,12 @@ export interface HandState {
 }
 
 /**
+ * Everything about a hand except the undealt deck. Read-only helpers take this
+ * so they work equally on the server's full state and on a published one.
+ */
+export type HandView = Omit<HandState, 'deck'>;
+
+/**
  * The subset of a hand that is safe to publish to every player at the table:
  * the undealt deck is gone, and hole cards are only present for seats that are
  * meant to be visible. Built by `toPublicState`.
