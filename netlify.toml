@@ -1,14 +1,26 @@
+# This file is authoritative: Netlify uses these over anything set in the UI.
+#
+# The build runs from the repository root rather than from apps/web, because
+# that is where the pnpm workspace and its lockfile live. Leave "Base directory"
+# empty in the Netlify UI — if it is set, Netlify looks for netlify.toml inside
+# that directory instead of here, and these settings are silently ignored.
+
 [build]
-  base = "apps/web"
-  command = "pnpm build"
-  publish = "dist"
+  command = "pnpm --filter web build"
+  publish = "apps/web/dist"
 
 [build.environment]
   NODE_VERSION = "22"
-  PNPM_VERSION = "12"
 
-# Room links have to survive a refresh.
+# Room links are shared as /room/ABC123, so every path has to fall through to
+# the single-page app rather than 404.
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    # Vite fingerprints asset filenames, so they can be cached indefinitely.
+    Cache-Control = "public, max-age=31536000, immutable"
