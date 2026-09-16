@@ -109,6 +109,12 @@ describe('the table', () => {
     expect(dead).toContain('50');
   });
 
+  it('counts the whole pot in the middle, antes and live bets included', async () => {
+    await dealFirstHand();
+    // Dead small blind 50, big-blind ante 100, and the big blind itself 100.
+    expect(table().querySelector('.pot-value')?.textContent).toBe('250');
+  });
+
   it('sweeps the dead chips into the pot once preflop is over', async () => {
     const user = await dealFirstHand();
     expect(table().querySelectorAll('.chip.dead').length).toBeGreaterThan(0);
@@ -389,13 +395,13 @@ describe('playing a hand', () => {
     const user = await dealFirstHand();
     const presets = () => [...document.querySelectorAll('.sizes .size')].map((b) => b.textContent);
 
-    expect(presets()).toEqual(['2x', '2.2x', '2.5x', '3x']);
+    expect(presets()).toEqual(['2x', '2.2x', '2.5x', '3x', 'Max']);
 
     await user.click(screen.getByRole('button', { name: /^Call/ }));
     await user.click(screen.getByRole('button', { name: 'Check' }));
 
-    // Postflop the presets switch to pot fractions.
-    expect(presets()).toEqual(['25%', '40%', '66%', '100%']);
+    // Postflop the presets switch to pot fractions; Max stays at the end.
+    expect(presets()).toEqual(['25%', '40%', '66%', '100%', 'Max']);
   });
 
   it('sets the size from a preset and commits it with the raise button', async () => {
@@ -487,6 +493,11 @@ describe('playing a hand', () => {
     const result = document.querySelector('.result') as HTMLElement;
     expect(within(result).getByText('Player 2 wins 150')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Next hand' })).toBeTruthy();
+
+    // The winnings sit on the felt in front of the winner, and nothing else does.
+    const chips = [...table().querySelectorAll('.chip')].map((chip) => chip.textContent);
+    expect(chips).toEqual(['+150']);
+    expect(table().querySelector('.chip.won')).toBeTruthy();
     expect(screen.getByRole('heading', { name: /Hand #1 · BTN vs BB/ })).toBeTruthy();
   });
 

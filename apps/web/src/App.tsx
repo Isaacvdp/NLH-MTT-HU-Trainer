@@ -4,6 +4,7 @@ import { useHotSeat } from './hotseat.js';
 import { ActionBar } from './components/ActionBar.js';
 import { ActionLog } from './components/ActionLog.js';
 import { DisplaySettings } from './components/DisplaySettings.js';
+import { Console, GameWindow } from './components/GameWindow.js';
 import { HandResult } from './components/HandResult.js';
 import { HistoryPanel, seatVisibility } from './components/HistoryPanel.js';
 import { Lobby } from './components/Lobby.js';
@@ -145,48 +146,53 @@ function HotSeat({ hotSeat, onBack }: HotSeatProps) {
 
   return (
     <div className="stack">
-      <div className="subtle">
-        {spotLabel(configForSettings(settings, [0, 0]))} · hand #{hand.handNumber}
-      </div>
-
       {state.error && <div className="error">{state.error}</div>}
 
-      <PokerTable
-        hand={hand}
-        nameOfSeat={nameOfSeat}
-        visibleSeats={seatVisibility(hand, {
-          hideWaiting: settings.hideWaitingPlayer,
-          reveal: settings.revealHandsAfterHand,
-        })}
-        // On one screen there is no single hero, so keep the layout still and
-        // put the player who acts first postflop at the bottom.
-        heroSeat={0}
-      />
-
-      <section className="panel">
-        {hand.complete ? (
+      <GameWindow
+        title={
           <>
-            <HandResult hand={hand} nameOfSeat={nameOfSeat} />
-            <div className="row" style={{ marginTop: '0.75rem' }}>
-              <button className="primary" onClick={nextHand}>
+            <span>{spotLabel(configForSettings(settings, [0, 0]))}</span>
+            <span>hand #{hand.handNumber}</span>
+          </>
+        }
+      >
+        <PokerTable
+          hand={hand}
+          nameOfSeat={nameOfSeat}
+          visibleSeats={seatVisibility(hand, {
+            hideWaiting: settings.hideWaitingPlayer,
+            reveal: settings.revealHandsAfterHand,
+          })}
+          // On one screen there is no single hero, so keep the layout still and
+          // put the player who acts first postflop at the bottom.
+          heroSeat={0}
+        />
+
+        {hand.complete ? (
+          <Console
+            status={<HandResult hand={hand} nameOfSeat={nameOfSeat} />}
+            controls={
+              <button className="act next" onClick={nextHand}>
                 Next hand
               </button>
-            </div>
-          </>
+            }
+          />
         ) : (
           <ActionBar hand={hand} onAct={act} actorName={nameOfSeat(hand.toAct as PlayerIndex)} />
         )}
-      </section>
+      </GameWindow>
 
-      <section className="panel">
-        <h2>
-          Hand #{hand.handNumber} · {POSITION_LABELS[hand.players[0].position]} vs{' '}
-          {POSITION_LABELS[hand.players[1].position]}
-        </h2>
-        <ActionLog hand={hand} nameOfSeat={nameOfSeat} />
-      </section>
+      <div className="side-by-side">
+        <section className="panel">
+          <h2>
+            Hand #{hand.handNumber} · {POSITION_LABELS[hand.players[0].position]} vs{' '}
+            {POSITION_LABELS[hand.players[1].position]}
+          </h2>
+          <ActionLog hand={hand} nameOfSeat={nameOfSeat} />
+        </section>
 
-      <HistoryPanel finished={state.finished} />
+        <HistoryPanel finished={state.finished} />
+      </div>
 
       <div className="row">
         <button onClick={endSession}>Back to setup</button>

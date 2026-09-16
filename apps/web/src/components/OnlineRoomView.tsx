@@ -3,6 +3,7 @@ import { POSITION_LABELS, type PlayerIndex, type PublicHandState } from 'engine'
 import { useOnlineRoom } from '../supabase/room.js';
 import { ActionBar } from './ActionBar.js';
 import { ActionLog } from './ActionLog.js';
+import { Console, GameWindow } from './GameWindow.js';
 import { HandResult } from './HandResult.js';
 import { HistoryPanel } from './HistoryPanel.js';
 import { PokerTable } from './PokerTable.js';
@@ -111,55 +112,87 @@ export function OnlineRoomView({ roomId, code, onLeave }: Props) {
       )}
 
       {hand && (
-        <PokerTable
-          hand={hand}
-          nameOfSeat={(seat) => names[seat]}
-          visibleSeats={visibleSeats(hand, room.mySeat)}
-          // Your own seat sits at the bottom of the table, as at a real one.
-          heroSeat={room.mySeat ?? 0}
-        />
+        <GameWindow
+          title={
+            <>
+              <span>
+                {POSITION_LABELS[hand.players[0].position]} vs{' '}
+                {POSITION_LABELS[hand.players[1].position]} ({hand.config.tableSize}-handed)
+              </span>
+              <span>hand #{hand.handNumber}</span>
+            </>
+          }
+        >
+          <PokerTable
+            hand={hand}
+            nameOfSeat={(seat) => names[seat]}
+            visibleSeats={visibleSeats(hand, room.mySeat)}
+            // Your own seat sits at the bottom of the table, as at a real one.
+            heroSeat={room.mySeat ?? 0}
+          />
+
+          {!hand.complete && room.myTurn && (
+            <ActionBar
+              hand={hand}
+              onAct={(action) => void room.act(action)}
+              actorName={names[hand.toAct as PlayerIndex]}
+              disabled={room.busy}
+            />
+          )}
+
+          {!hand.complete && !room.myTurn && (
+            <Console
+              status={
+                <span className="status-line">
+                  Waiting for {names[hand.toAct as PlayerIndex]} to act — {hand.street}
+                </span>
+              }
+            />
+          )}
+
+          {hand.complete && (
+            <Console
+              status={<HandResult hand={hand} nameOfSeat={(seat) => names[seat]} />}
+              controls={
+                canDeal && (
+                  <button className="act next" onClick={() => void room.startHand()} disabled={room.busy}>
+                    {room.busy ? 'Dealing…' : 'Next hand'}
+                  </button>
+                )
+              }
+            />
+          )}
+        </GameWindow>
       )}
 
-      <section className="panel">
-        {!hand && !waiting && <p className="subtle">Nobody has dealt yet.</p>}
-
-        {hand && !hand.complete && room.myTurn && (
-          <ActionBar
-            hand={hand}
-            onAct={(action) => void room.act(action)}
-            actorName={names[hand.toAct as PlayerIndex]}
-            disabled={room.busy}
-          />
-        )}
-
-        {hand && !hand.complete && !room.myTurn && (
-          <p className="subtle">
-            Waiting for {names[hand.toAct as PlayerIndex]} to act — {hand.street}.
-          </p>
-        )}
-
-        {hand?.complete && <HandResult hand={hand} nameOfSeat={(seat) => names[seat]} />}
-
-        {canDeal && (
-          <div className="row" style={{ marginTop: hand ? '0.75rem' : 0 }}>
-            <button className="primary" onClick={() => void room.startHand()} disabled={room.busy}>
-              {room.busy ? 'Dealing…' : hand ? 'Next hand' : 'Deal first hand'}
-            </button>
-          </div>
-        )}
-      </section>
-
-      {hand && (
+      {!hand && (
         <section className="panel">
-          <h2>
-            Hand #{hand.handNumber} · {POSITION_LABELS[hand.players[0].position]} vs{' '}
-            {POSITION_LABELS[hand.players[1].position]}
-          </h2>
-          <ActionLog hand={hand} nameOfSeat={(seat) => names[seat]} />
+          {!waiting && <p className="subtle">Nobody has dealt yet.</p>}
+          {canDeal && (
+            <div className="row">
+              <button className="primary" onClick={() => void room.startHand()} disabled={room.busy}>
+                {room.busy ? 'Dealing…' : 'Deal first hand'}
+              </button>
+            </div>
+          )}
         </section>
       )}
 
-      <HistoryPanel finished={finished} />
+      {hand && (
+        <div className="side-by-side">
+          <section className="panel">
+            <h2>
+              Hand #{hand.handNumber} · {POSITION_LABELS[hand.players[0].position]} vs{' '}
+              {POSITION_LABELS[hand.players[1].position]}
+            </h2>
+            <ActionLog hand={hand} nameOfSeat={(seat) => names[seat]} />
+          </section>
+
+          <HistoryPanel finished={finished} />
+        </div>
+      )}
+
+      {!hand && <HistoryPanel finished={finished} />}
     </div>
   );
 }

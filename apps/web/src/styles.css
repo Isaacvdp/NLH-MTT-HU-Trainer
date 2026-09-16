@@ -158,6 +158,13 @@ h2 {
   align-items: center;
 }
 
+.side-by-side {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+  gap: 1.1rem;
+  align-items: start;
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
@@ -218,27 +225,51 @@ h2 {
 
 /* ------------------------------------------------------------------ table */
 
+/* The whole game — felt plus the console with the buttons — is one framed
+   window, the way a poker client draws it, rather than a stack of panels. */
+.game {
+  background: #101215;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+  container-type: inline-size;
+  box-shadow: 0 0.6rem 2rem rgba(0, 0, 0, 0.35);
+}
+
+.game-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.55rem 1rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+  letter-spacing: 0.02em;
+  border-bottom: 1px solid var(--line-soft);
+}
+
 .table-wrap {
   container-type: inline-size;
   width: 100%;
+  padding: 0.75rem 0.75rem 0.25rem;
 }
 
 .table {
   position: relative;
   width: 100%;
-  aspect-ratio: 16 / 10;
+  aspect-ratio: 16 / 9;
   /* Everything inside is sized off this, so the table scales as one piece. */
-  font-size: clamp(9px, 1.65cqw, 15px);
+  font-size: clamp(9px, 1.6cqw, 15px);
 }
 
 .felt {
   position: absolute;
-  inset: 6% 7%;
+  inset: 7% 8% 9%;
   border-radius: 50%;
   background: var(--felt);
   box-shadow:
     0 0 0 0.7em var(--rail),
-    0 0 0 0.75em var(--line-soft),
+    0 0 0 0.8em var(--line-soft),
+    0 0.4em 1.5em rgba(0, 0, 0, 0.45),
     inset 0 0 4em rgba(0, 0, 0, 0.22);
 }
 
@@ -346,6 +377,14 @@ h2 {
   font-size: 1em;
 }
 
+.card-hero .rank {
+  font-size: 1.7em;
+}
+
+.card-hero .suit {
+  font-size: 1.4em;
+}
+
 .card[data-suit='s'] {
   color: var(--suit-s);
 }
@@ -445,6 +484,11 @@ h2 {
   opacity: 0.45;
 }
 
+.seat.hero {
+  min-width: 9.6em;
+  background: #30383f;
+}
+
 .seat.dead-seat {
   background: #232830;
   border-color: #2e343d;
@@ -524,6 +568,16 @@ h2 {
   background: #15181d;
 }
 
+/* The pot, pushed to whoever won it. */
+.chip.won {
+  color: var(--gold);
+  border-color: var(--gold);
+  background: #1f1a10;
+  font-weight: 600;
+  font-size: 1.05em;
+  padding: 0.25em 0.75em;
+}
+
 @keyframes chip-in {
   from {
     opacity: 0;
@@ -535,69 +589,115 @@ h2 {
   }
 }
 
+/* ---------------------------------------------------------------- console */
+
+/* The strip along the bottom of the window: status in the left corner, the
+   controls in the right, like the bottom of a client's table window. */
+.console {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1.25rem;
+  min-height: 8.75rem;
+  padding: 0.75rem 1rem 1rem;
+  border-top: 1px solid var(--line-soft);
+  background: #0c0e11;
+}
+
+.console-status {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+  padding-bottom: 0.25rem;
+}
+
+.console-controls {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.status-line {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.status-odds {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
 /* ------------------------------------------------------------- action bar */
 
 .action-bar {
   display: flex;
   flex-direction: column;
-  gap: 0.85rem;
+  align-items: flex-end;
+  gap: 0.55rem;
 }
 
-.action-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-
+/* Wide enough for three buttons, so the slider does not shrink when only
+   two are offered. */
 .sizing {
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
-  padding: 0.75rem;
-  border: 1px solid var(--line-soft);
-  border-radius: var(--radius);
-  background: rgba(0, 0, 0, 0.16);
+  align-items: stretch;
+  gap: 0.45rem;
+  width: 100%;
+  min-width: 27.15rem;
 }
 
 .sizes {
   display: flex;
-  gap: 0.4rem;
-  flex-wrap: wrap;
+  gap: 0.3rem;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.sizes .pot-odds {
+  margin-right: auto;
 }
 
 button.size {
-  flex: 0 1 4.5rem;
-  min-width: 3.6rem;
-  padding: 0.4rem 0.5rem;
-  font-size: 0.85rem;
+  flex: 0 0 auto;
+  min-width: 3rem;
+  padding: 0.3rem 0.55rem;
+  font-size: 0.78rem;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
   text-align: center;
+  border-radius: 6px;
+  background: #1c2026;
+  border-color: #2b3038;
 }
 
 button.size.selected {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-  color: var(--accent);
+  border-color: var(--raise);
+  background: rgba(217, 154, 60, 0.14);
+  color: var(--raise);
 }
 
 .slider-row {
   display: flex;
-  gap: 0.6rem;
+  gap: 0.5rem;
   align-items: center;
 }
 
 .slider-row .amount {
-  width: 6.5rem;
+  width: 5.75rem;
   flex: 0 0 auto;
   text-align: right;
   font-variant-numeric: tabular-nums;
-}
-
-.slider-row .size {
-  flex: 0 0 auto;
+  padding: 0.35rem 0.5rem;
+  border-radius: 6px;
+  background: #1c2026;
+  border-color: #2b3038;
 }
 
 /* The range input is styled by hand, because the default is very browser-specific. */
@@ -651,36 +751,43 @@ button.size.selected {
   cursor: not-allowed;
 }
 
-/* The three decisions. Sized to their content rather than stretched across the
-   panel, and colour-coded the way a real client does it. */
+/* The three decisions: equal-sized blocks in the corner, colour-coded the way
+   a real client does it, with the amount on its own line under the verb. */
 .action-main {
   display: flex;
-  gap: 0.6rem;
-  flex-wrap: wrap;
+  gap: 0.45rem;
   justify-content: flex-end;
 }
 
 button.act {
-  flex: 0 1 11rem;
-  min-width: 7rem;
-  max-width: 13rem;
-  padding: 0.7rem 1rem;
+  width: 8.75rem;
+  min-height: 3.25rem;
+  padding: 0.45rem 0.75rem;
+  border-radius: 8px;
   font-weight: 600;
+  font-size: 0.95rem;
+  line-height: 1.15;
   display: inline-flex;
-  align-items: baseline;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
-  gap: 0.4rem;
-  border: 1px solid transparent;
+  gap: 0.1rem;
+  border: 1px solid rgba(0, 0, 0, 0.25);
   color: #12151a;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
 
 .act-amount {
   font-variant-numeric: tabular-nums;
   font-weight: 700;
+  font-size: 0.95rem;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
 }
 
 .act-note {
-  font-size: 0.72rem;
+  font-size: 0.66rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   opacity: 0.75;
@@ -698,8 +805,13 @@ button.act.raise {
   background: var(--raise);
 }
 
+button.act.next {
+  background: var(--accent);
+}
+
 button.act:hover:not(:disabled) {
   filter: brightness(1.1);
+  border-color: rgba(0, 0, 0, 0.25);
 }
 
 /* ------------------------------------------------------------- pot odds */
@@ -991,25 +1103,51 @@ pre.history {
     padding: 0.85rem 0.6rem 3rem;
   }
 
+  .console {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    min-height: 0;
+  }
+
+  .console-controls,
+  .action-bar {
+    align-items: stretch;
+  }
+
+  .action-main {
+    justify-content: stretch;
+  }
+
   button.act {
-    flex: 1 1 6rem;
-    max-width: none;
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+  }
+
+  .sizing {
+    min-width: 0;
+  }
+
+  .sizes {
+    flex-wrap: wrap;
   }
 
   button.size {
-    flex: 1 1 3.5rem;
+    flex: 1 1 3rem;
   }
 
   .slider-row .amount {
     width: 5rem;
   }
 
-  .action-head {
-    align-items: flex-start;
-  }
-
   .panel {
     padding: 1rem;
+  }
+
+  .table-wrap {
+    padding: 0.5rem 0.4rem 0;
   }
 
   .table {
@@ -1018,7 +1156,7 @@ pre.history {
   }
 
   .felt {
-    inset: 4% 4%;
+    inset: 4% 4% 5%;
   }
 
   .board {

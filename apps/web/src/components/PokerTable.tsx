@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import {
   POSITION_LABELS,
   buttonPosition,
-  settledPot,
   type HandView,
   type PlayerIndex,
 } from 'engine';
@@ -23,7 +22,6 @@ export function PokerTable({ hand, nameOfSeat, visibleSeats, heroSeat = 0 }: Pro
   const amounts = useAmounts(hand.config.bigBlind);
   const slots = seatSlots(hand.config, heroSeat);
   const button = buttonPosition(hand.config.tableSize);
-  const middle = settledPot(hand);
 
   return (
     <div className="table-wrap">
@@ -31,8 +29,9 @@ export function PokerTable({ hand, nameOfSeat, visibleSeats, heroSeat = 0 }: Pro
         <div className="felt" />
 
         <div className="middle">
-          <div className="pot" aria-label="pot">
-            <span className="pot-label">Pot</span> <PotAmount amount={middle} format={amounts.format} />
+          {/* Once the pot has been pushed out there is nothing to count. */}
+          <div className="pot" aria-label="pot" style={{ visibility: hand.complete ? 'hidden' : 'visible' }}>
+            <span className="pot-label">Pot</span> <PotAmount amount={hand.pot} format={amounts.format} />
           </div>
           <div className="cards board">
             {[0, 1, 2, 3, 4].map((i) => (
@@ -57,6 +56,7 @@ export function PokerTable({ hand, nameOfSeat, visibleSeats, heroSeat = 0 }: Pro
               hand={hand}
               name={nameOfSeat(slot.player)}
               visible={visibleSeats.includes(slot.player)}
+              isHero={slot.player === heroSeat}
               isButton={slot.position === button}
               format={amounts.format}
             />
@@ -67,7 +67,11 @@ export function PokerTable({ hand, nameOfSeat, visibleSeats, heroSeat = 0 }: Pro
   );
 }
 
-/** Nudges the pot when it changes, so chips arriving is noticeable. */
+/**
+ * The whole pot — dead money, antes and the bets still in front of the
+ * players — the way a client's pot counter reads. Nudged when it changes, so
+ * chips arriving is noticeable.
+ */
 function PotAmount({ amount, format }: { amount: number; format: (n: number) => string }) {
   const [bumped, setBumped] = useState(false);
   const previous = useRef(amount);
@@ -89,14 +93,19 @@ interface LiveSeatProps {
   hand: HandView;
   name: string;
   visible: boolean;
+  /** The viewer's own seat, drawn at the bottom with larger cards. */
+  isHero: boolean;
   isButton: boolean;
   format: (n: number) => string;
 }
 
-function LiveSeat({ slot, player, hand, name, visible, isButton, format }: LiveSeatProps) {
+function LiveSeat({ slot, player, hand, name, visible, isHero, isButton, format }: LiveSeatProps) {
   const state = hand.players[player];
   const toAct = hand.toAct === player;
-  const classes = ['seat', toAct && 'to-act', state.status === 'folded' && 'folded']
+  // Once the hand is over the pot has been pushed to the winner, so what they
+  // won sits in front of them where their bet used to be.
+  const won = hand.complete ? (hand.result?.awarded[player] ?? 0) : 0;
+  const classes = ['seat', isHero && 'hero', toAct && 'to-act', state.status === 'folded' && 'folded']
     .filter(Boolean)
     .join(' ');
 
@@ -105,7 +114,7 @@ function LiveSeat({ slot, player, hand, name, visible, isButton, format }: LiveS
       <div className="seat-slot" style={{ left: `${slot.x}%`, top: `${slot.y}%` }}>
         {state.status !== 'folded' && (
           <div className="seat-cards">
-            <CardRow cards={state.holeCards} hidden={!visible} />
+            <CardRow cards={state.holeCards} hidden={!visible} size={isHero ? 'hero' : 'seat'} />
           </div>
         )}
 
@@ -129,6 +138,8 @@ function LiveSeat({ slot, player, hand, name, visible, isButton, format }: LiveS
           format={format}
         />
       )}
+
+      {won > 0 && <Chip amount={won} x={slot.betX} y={slot.betY} kind="won" format={format} />}
     </>
   );
 }
@@ -137,7 +148,8 @@ function FoldedSeat({ slot, hand, isButton }: { slot: SeatSlot; hand: HandView; 
   const amounts = useAmounts(hand.config.bigBlind);
   // Dead money is swept into the pot when the preflop betting closes, exactly
   // like the live players' bets, so the chip only belongs on the table preflop.
-  const dead = hand.street === 'preflop' ? deadChipsAt(slot.position, hand.config) : 0;
+  const dead =
+    hand.street === 'preflop' && !hand.complete ? deadChipsAt(slot.position, hand.config) : 0;
 
   return (
     <>
@@ -152,7 +164,7 @@ function FoldedSeat({ slot, hand, isButton }: { slot: SeatSlot; hand: HandView; 
       </div>
 
       {dead > 0 && (
-        <Chip amount={dead} x={slot.betX} y={slot.betY} dead format={amounts.format} />
+        <Chip amount={dead} x={slot.betX} y={slot.betY} kind="dead" format={amounts.format} />
       )}
     </>
   );
@@ -162,18 +174,25 @@ interface ChipProps {
   amount: number;
   x: number;
   y: number;
-  dead?: boolean;
+  /** A live bet, dead money left by a folded seat, or a pot just won. */
+  kind?: 'bet' | 'dead' | 'won';
   format: (n: number) => string;
 }
 
-function Chip({ amount, x, y, dead = false, format }: ChipProps) {
+const CHIP_TITLES: Record<NonNullable<ChipProps['kind']>, string | undefined> = {
+  bet: undefined,
+  dead: 'Dead money from a folded seat',
+  won: 'Won this hand',
+};
+
+function Chip({ amount, x, y, kind = 'bet', format }: ChipProps) {
   return (
     <div
-      className={dead ? 'chip dead' : 'chip'}
+      className={kind === 'bet' ? 'chip' : `chip ${kind}`}
       style={{ left: `${x}%`, top: `${y}%` }}
-      title={dead ? 'Dead money from a folded seat' : undefined}
+      title={CHIP_TITLES[kind]}
     >
-      {format(amount)}
+      {kind === 'won' ? `+${format(amount)}` : format(amount)}
     </div>
   );
 }

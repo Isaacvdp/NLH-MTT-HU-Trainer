@@ -8,21 +8,25 @@ import {
   type HandView,
 } from 'engine';
 import { useAmounts } from '../display.js';
+import { Console } from './GameWindow.js';
 import { PotOddsLine } from './PotOddsLine.js';
 
 interface Props {
   hand: HandView;
   onAct: (action: Action) => void;
-  /** Name of whoever is to act, shown above the buttons. */
+  /** Name of whoever is to act, shown in the status corner. */
   actorName: string;
   /** Blocks the buttons while an action is being sent to the server. */
   disabled?: boolean;
 }
 
 /**
- * Presets set the size and the slider fine-tunes it; the coloured button on the
- * right commits it. Nothing bets on a single click, which matters when the
+ * Presets set the size and the slider fine-tunes it; the coloured button
+ * commits it. Nothing bets on a single click, which matters when the
  * difference between a min-raise and a shove is one mis-tap.
+ *
+ * Laid out as a client does it: a compact cluster in the bottom-right corner,
+ * with the sizing controls stacked above the three decisions.
  */
 export function ActionBar({ hand, onAct, actorName, disabled = false }: Props) {
   const amounts = useAmounts(hand.config.bigBlind);
@@ -65,18 +69,27 @@ export function ActionBar({ hand, onAct, actorName, disabled = false }: Props) {
     setTyped(null);
   };
 
-  return (
-    <div className="action-bar">
-      <div className="action-head">
-        <span className="subtle">
-          {actorName} to act — {hand.street}
-        </span>
-        {facing && <PotOddsLine odds={facing} kind="facing" />}
-      </div>
+  const verb = opening ? 'Bet' : 'Raise';
 
+  const status = (
+    <>
+      <span className="status-line">
+        {actorName} to act — {hand.street}
+      </span>
+      {facing && (
+        <span className="status-odds">
+          <span className="subtle">To call</span> <PotOddsLine odds={facing} kind="facing" />
+        </span>
+      )}
+    </>
+  );
+
+  const controls = (
+    <div className="action-bar">
       {canAggress && (
         <div className="sizing">
           <div className="sizes">
+            {laying && <PotOddsLine odds={laying} kind="laying" />}
             {sizes.map((size) => (
               <button
                 key={`${size.label}-${size.to}`}
@@ -84,11 +97,20 @@ export function ActionBar({ hand, onAct, actorName, disabled = false }: Props) {
                 className={raiseTo === size.to ? 'size selected' : 'size'}
                 onClick={() => setRaiseTo(size.to)}
                 disabled={disabled}
-                title={`${opening ? 'Bet' : 'Raise'} to ${amounts.format(size.to)}`}
+                title={`${verb} to ${amounts.format(size.to)}`}
               >
                 {size.label}
               </button>
             ))}
+            <button
+              type="button"
+              className={raiseTo === maxTo ? 'size selected' : 'size'}
+              onClick={() => setRaiseTo(maxTo)}
+              disabled={disabled}
+              title="All-in for the effective stack"
+            >
+              Max
+            </button>
           </div>
 
           <div className="slider-row">
@@ -101,7 +123,7 @@ export function ActionBar({ hand, onAct, actorName, disabled = false }: Props) {
               value={raiseTo}
               onChange={(event) => setRaiseTo(clamp(Number(event.target.value)))}
               disabled={disabled}
-              aria-label={`${opening ? 'Bet' : 'Raise'} size`}
+              aria-label={`${verb} size`}
             />
             <input
               className="amount"
@@ -115,20 +137,9 @@ export function ActionBar({ hand, onAct, actorName, disabled = false }: Props) {
                 if (event.key === 'Enter') commitTyped();
               }}
               disabled={disabled}
-              aria-label={`${opening ? 'Bet' : 'Raise'} to`}
+              aria-label={`${verb} to`}
             />
-            <button
-              type="button"
-              className="size"
-              onClick={() => setRaiseTo(maxTo)}
-              disabled={disabled}
-              title="All-in for the effective stack"
-            >
-              Max
-            </button>
           </div>
-
-          {laying && <PotOddsLine odds={laying} kind="laying" />}
         </div>
       )}
 
@@ -147,8 +158,11 @@ export function ActionBar({ hand, onAct, actorName, disabled = false }: Props) {
 
         {legal.types.includes('call') && (
           <button className="act call" onClick={() => onAct({ type: 'call' })} disabled={disabled}>
-            Call <span className="act-amount">{amounts.format(legal.callAmount)}</span>
-            {callIsAllIn && <span className="act-note">all-in</span>}
+            Call{' '}
+            <span className="act-amount">
+              {amounts.format(legal.callAmount)}
+              {callIsAllIn && <span className="act-note">all-in</span>}
+            </span>
           </button>
         )}
 
@@ -165,4 +179,6 @@ export function ActionBar({ hand, onAct, actorName, disabled = false }: Props) {
       </div>
     </div>
   );
+
+  return <Console status={status} controls={controls} />;
 }
